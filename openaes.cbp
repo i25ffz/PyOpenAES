@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="openaes" />
+		<Option pch_mode="2" />
+		<Option compiler="armelfgcc" />
+		<Build>
+			<Target title="release">
+				<Option output="openaes" prefix_auto="0" extension_auto="0" />
+				<Option object_output="$(TARGET_NAME)" />
+				<Option type="1" />
+				<Option compiler="armelfgcc" />
+				<Option use_console_runner="0" />
+				<Compiler>
+					<Add option="-mthumb" />
+					<Add option="-mthumb-interwork" />
+					<Add option="-msoft-float" />
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-O2" />
+					<Add option="-Wall" />
+					<Add option="-DANDROID" />
+					<Add option="-D__ARM_ARCH_5__" />
+					<Add option="-D__ARM_ARCH_5T__" />
+					<Add option="-D__ARM_ARCH_5E__" />
+					<Add option="-D__ARM_ARCH_5TE__" />
+					<Add option="-DNDEBUG" />
+					<Add directory="inc" />
+					<Add directory="src/isaac" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+				<ExtraCommands>
+					<Add after="adb push openaes /data/local/openaes" />
+					<Add after="adb shell chmod 755 /data/local/openaes" />
+					<Mode after="always" />
+				</ExtraCommands>
+			</Target>
+			<Target title="debug">
+				<Option output="openaes_d" prefix_auto="0" extension_auto="0" />
+				<Option object_output="$(TARGET_NAME)" />
+				<Option type="1" />
+				<Option compiler="armelfgcc" />
+				<Option use_console_runner="0" />
+				<Compiler>
+					<Add option="-marm" />
+					<Add option="-msoft-float" />
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+					<Add directory="inc" />
+					<Add directory="src/isaac" />
+				</Compiler>
+				<ExtraCommands>
+					<Add after="adb push openaes_d /data/local/openaes_d" />
+					<Add after="adb shell  chmod 777 /data/local/openaes_d" />
+					<Mode after="always" />
+				</ExtraCommands>
+			</Target>
+			<Target title="windbg">
+				<Option output="openaes.exe" prefix_auto="0" extension_auto="0" />
+				<Option object_output="$(TARGET_NAME)" />
+				<Option type="1" />
+				<Option compiler="cygwin" />
+				<Option parameters="aes-dec --key-file key_256 --in README.aes256 --out README.new1" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-DENABLE_PYTHON" />
+					<Add directory="inc" />
+					<Add directory="src/isaac" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Unit filename="inc/oaes_common.h" />
+		<Unit filename="inc/oaes_config.h" />
+		<Unit filename="inc/oaes_lib.h" />
+		<Unit filename="src/isaac/rand.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/isaac/rand.h" />
+		<Unit filename="src/isaac/standard.h" />
+		<Unit filename="src/oaes.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/oaes_base64.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/oaes_lib.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger>
+				<remote_debugging target="debug">
+					<options conn_type="0" serial_baud="115200" ip_address="localhost" ip_port="1234" />
+				</remote_debugging>
+			</debugger>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
