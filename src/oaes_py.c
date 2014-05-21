@@ -36,6 +36,8 @@
 
 #include "oaes_lib.h"
 
+static PyObject *OpenaesError;
+
 PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
 {
     uint8_t *key;
@@ -60,14 +62,14 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     ctx = oaes_alloc();
     if( NULL == ctx )
     {
-        fprintf(stderr, "Error: Failed to initialize OAES.\n");
+        PyErr_SetString(OpenaesError, "Failed to initialize OAES.");
         return NULL;
     }
 
     OAES_RET ret = oaes_key_import( ctx, key, len_k );
     if( OAES_RET_SUCCESS != ret)
     {
-        fprintf(stderr, "Error: Import key error(%d).\n", ret);
+        PyErr_SetString(OpenaesError, "Import encrypt key error.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -80,7 +82,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
 
     if( OAES_RET_SUCCESS != ret )
     {
-        fprintf(stderr, "Error: Failed to encrypt.\n");
+        PyErr_SetString(OpenaesError, "Failed to encrypt.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -88,7 +90,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     buf = (uint8_t *) calloc(len_o, sizeof(uint8_t));
     if( NULL == buf )
     {
-        fprintf(stderr, "Error: Failed to allocate memory.\n");
+        PyErr_SetString(OpenaesError, "Failed to allocate memory.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -97,7 +99,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     ret = oaes_encrypt( ctx, content, len_c, buf, &len_o );
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
-        fprintf(stderr, "Error: Failed to uninitialize OAES.\n");
+        PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");
 
 	PyObject *po = Py_BuildValue("s#", buf, len_o);
 
@@ -129,14 +131,14 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     ctx = oaes_alloc();
     if( NULL == ctx )
     {
-        fprintf(stderr, "Error: Failed to initialize OAES.\n");
+        PyErr_SetString(OpenaesError, "Failed to initialize OAES.");
         return NULL;
     }
 
     ret = oaes_key_import( ctx, key, len_k );
     if( OAES_RET_SUCCESS != ret)
     {
-        fprintf(stderr, "Error: Import key error(%d).\n", ret);
+        PyErr_SetString(OpenaesError, "Import decrypt key error.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -149,7 +151,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
 
     if( OAES_RET_SUCCESS != ret )
     {
-        fprintf(stderr, "Error: Failed to decrypt.\n");
+        PyErr_SetString(OpenaesError, "Failed to decrypt.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -157,7 +159,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     buf = (uint8_t *) calloc(len_o, sizeof(uint8_t));
     if( NULL == buf )
     {
-        fprintf(stderr, "Error: Failed to allocate memory.\n");
+        PyErr_SetString(OpenaesError, "Failed to allocate memory.");
         oaes_free(&ctx);
         return NULL;
     }
@@ -166,7 +168,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     ret = oaes_decrypt( ctx, content, len_c, buf, &len_o );
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
-        fprintf(stderr, "Error: Failed to uninitialize OAES.\n");
+        PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");
 
 	PyObject *po = Py_BuildValue("s#", buf, len_o);
 
@@ -184,5 +186,11 @@ static PyMethodDef openaesMethods[] =
 PyMODINIT_FUNC initopenaes()
 {
     // define methods
-    Py_InitModule("openaes", openaesMethods);
+    PyObject* m = Py_InitModule("openaes", openaesMethods);
+    if (m == NULL)
+        return;
+        
+    OpenaesError = PyErr_NewException("openaes.error", NULL, NULL);
+    Py_INCREF(OpenaesError);
+    PyModule_AddObject(m, "error", OpenaesError);
 }
