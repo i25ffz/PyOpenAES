@@ -32,8 +32,8 @@
 					<Add option="-s" />
 				</Linker>
 				<ExtraCommands>
-					<Add after="adb push openaes /data/local/openaes" />
-					<Add after="adb shell chmod 755 /data/local/openaes" />
+					<Add after="adb push openaes /data/local/tmp/openaes" />
+					<Add after="adb shell chmod 755 /data/local/tmp/openaes" />
 					<Mode after="always" />
 				</ExtraCommands>
 			</Target>
@@ -53,8 +53,8 @@
 					<Add directory="src/isaac" />
 				</Compiler>
 				<ExtraCommands>
-					<Add after="adb push openaes_d /data/local/openaes_d" />
-					<Add after="adb shell  chmod 777 /data/local/openaes_d" />
+					<Add after="adb push openaes_d /data/local/tmp/openaes_d" />
+					<Add after="adb shell  chmod 777 /data/local/tmp/openaes_d" />
 					<Mode after="always" />
 				</ExtraCommands>
 			</Target>
@@ -71,6 +71,35 @@
 					<Add directory="src/isaac" />
 				</Compiler>
 			</Target>
+			<Target title="relso">
+				<Option output="libopenaes.so" prefix_auto="0" extension_auto="0" />
+				<Option working_dir="" />
+				<Option object_output="$(TARGET_NAME)" />
+				<Option type="5" />
+				<Option compiler="armelfgcc" />
+				<Compiler>
+					<Add option="-mthumb" />
+					<Add option="-mthumb-interwork" />
+					<Add option="-msoft-float" />
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-O2" />
+					<Add option="-Wall" />
+					<Add option="-fPIC" />
+					<Add option="-DANDROID" />
+					<Add option="-D__ARM_ARCH_5__" />
+					<Add option="-D__ARM_ARCH_5T__" />
+					<Add option="-D__ARM_ARCH_5E__" />
+					<Add option="-D__ARM_ARCH_5TE__" />
+					<Add option="-DNDEBUG" />
+					<Add directory="inc" />
+					<Add directory="src/isaac" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-shared" />
+					<Add option="-Wl,-soname,libopenaes.so" />
+				</Linker>
+			</Target>
 		</Build>
 		<Unit filename="inc/oaes_common.h" />
 		<Unit filename="inc/oaes_config.h" />
@@ -82,9 +111,16 @@
 		<Unit filename="src/isaac/standard.h" />
 		<Unit filename="src/oaes.c">
 			<Option compilerVar="CC" />
+			<Option target="release" />
+			<Option target="debug" />
+			<Option target="windbg" />
 		</Unit>
 		<Unit filename="src/oaes_base64.c">
 			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/oaes_jni.c">
+			<Option compilerVar="CC" />
+			<Option target="relso" />
 		</Unit>
 		<Unit filename="src/oaes_lib.c">
 			<Option compilerVar="CC" />
