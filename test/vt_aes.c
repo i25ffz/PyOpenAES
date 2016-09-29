@@ -130,6 +130,8 @@ int main(int argc, char** argv)
 	short _is_ecb = 0, _is_bin = 0;
 	char * _text = NULL, * _key_text = NULL;
 	int _key_len = 128;
+	uint8_t _iv[OAES_BLOCK_SIZE] = "";
+	uint8_t _pad = 0;
 	
 	if( argc < 2 )
 	{
@@ -314,7 +316,7 @@ int main(int argc, char** argv)
 	if( _bin_data )
 	{
 		if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-				_bin_data, _bin_data_len, NULL, &_encbuf_len ) )
+				_bin_data, _bin_data_len, NULL, &_encbuf_len, NULL, NULL ) )
 			printf("Error: Failed to retrieve required buffer size for encryption.\n");
 		_encbuf = (uint8_t *) calloc(_encbuf_len, sizeof(uint8_t));
 		if( NULL == _encbuf )
@@ -327,14 +329,15 @@ int main(int argc, char** argv)
 		}
 		printf( "\n" );
 		if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-				_bin_data, _bin_data_len, _encbuf, &_encbuf_len ) )
+				_bin_data, _bin_data_len, _encbuf, &_encbuf_len, _iv, &_pad ) )
 			printf("Error: Encryption failed.\n");
 		printf( "\n**********************\n\n" );
 	}
 	else
 	{
 		if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-				(const uint8_t *)_text, strlen( _text ), NULL, &_encbuf_len ) )
+				(const uint8_t *)_text, strlen( _text ), NULL, &_encbuf_len,
+				NULL, NULL ) )
 			printf("Error: Failed to retrieve required buffer size for encryption.\n");
 		_encbuf = (uint8_t *) calloc(_encbuf_len, sizeof(uint8_t));
 		if( NULL == _encbuf )
@@ -346,13 +349,14 @@ int main(int argc, char** argv)
 		}
 		printf( "\n" );
 		if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-				(const uint8_t *)_text, strlen( _text ), _encbuf, &_encbuf_len ) )
+				(const uint8_t *)_text, strlen( _text ), _encbuf, &_encbuf_len,
+				_iv, &_pad ))
 			printf("Error: Encryption failed.\n");
 		printf( "\n**********************\n\n" );
 	}
 
 	if( OAES_RET_SUCCESS != oaes_decrypt( ctx,
-			_encbuf, _encbuf_len, NULL, &_decbuf_len ) )
+			_encbuf, _encbuf_len, NULL, &_decbuf_len, NULL, NULL ) )
 		printf("Error: Failed to retrieve required buffer size for encryption.\n");
 	_decbuf = (uint8_t *) calloc(_decbuf_len, sizeof(uint8_t));
 	if( NULL == _decbuf )
@@ -366,7 +370,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 	if( OAES_RET_SUCCESS != oaes_decrypt( ctx,
-			_encbuf, _encbuf_len, _decbuf, &_decbuf_len ) )
+			_encbuf, _encbuf_len, _decbuf, &_decbuf_len, _iv, _pad ) )
 		printf("Error: Decryption failed.\n");
 
 	if( OAES_RET_SUCCESS !=  oaes_free( &ctx ) )

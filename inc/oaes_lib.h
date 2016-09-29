@@ -149,13 +149,21 @@ OAES_API OAES_RET oaes_key_import( OAES_CTX * ctx,
 OAES_API OAES_RET oaes_key_import_data( OAES_CTX * ctx,
 		const uint8_t * data, size_t data_len );
 
-// set c == NULL to get the required c_len
+/**
+ * @param[in,out] iv The initialization vector
+ * set c == NULL to get the required c_len
+ */
 OAES_API OAES_RET oaes_encrypt( OAES_CTX * ctx,
-		const uint8_t * m, size_t m_len, uint8_t * c, size_t * c_len );
+		const uint8_t * m, size_t m_len, uint8_t * c, size_t * c_len,
+		uint8_t iv[OAES_BLOCK_SIZE], uint8_t * pad);
 
-// set m == NULL to get the required m_len
+/**
+ * @param[in,out] iv The initialization vector
+ * set m == NULL to get the required m_len
+ */
 OAES_API OAES_RET oaes_decrypt( OAES_CTX * ctx,
-		const uint8_t * c, size_t c_len, uint8_t * m, size_t * m_len );
+		const uint8_t * c, size_t c_len, uint8_t * m, size_t * m_len,
+		uint8_t iv[OAES_BLOCK_SIZE], uint8_t pad);
 
 // set buf == NULL to get the required buf_len
 OAES_API OAES_RET oaes_sprintf(

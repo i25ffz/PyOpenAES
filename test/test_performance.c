@@ -61,6 +61,8 @@ int main(int argc, char** argv) {
 	short _is_ecb = 0;
 	int _key_len = 128;
 	size_t _data_len = 64;
+	uint8_t _iv[OAES_BLOCK_SIZE] = "";
+	uint8_t _pad = 0;
 	
 	for( _i = 1; _i < argc; _i++ )
 	{
@@ -154,7 +156,7 @@ int main(int argc, char** argv) {
 	}
 
 	if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-			(const uint8_t *)_buf, 1024 * 1024, NULL, &_encbuf_len ) )
+			(const uint8_t *)_buf, 1024 * 1024, NULL, &_encbuf_len, NULL, NULL ) )
 		printf("Error: Failed to retrieve required buffer size for encryption.\n");
 	_encbuf = (uint8_t *) calloc( _encbuf_len, sizeof( char ) );
 	if( NULL == _encbuf )
@@ -164,7 +166,7 @@ int main(int argc, char** argv) {
 	}
 
 	if( OAES_RET_SUCCESS != oaes_decrypt( ctx,
-			_encbuf, _encbuf_len, NULL, &_decbuf_len ) )
+			_encbuf, _encbuf_len, NULL, &_decbuf_len, NULL, NULL ) )
 		printf("Error: Failed to retrieve required buffer size for encryption.\n");
 	_decbuf = (uint8_t *) calloc( _decbuf_len, sizeof( char ) );
 	if( NULL == _decbuf )
@@ -178,11 +180,14 @@ int main(int argc, char** argv) {
 	
 	for( _i = 0; _i < _data_len; _i++ )
 	{
+		memcpy(_iv, "123456789012345", OAES_BLOCK_SIZE);
 		if( OAES_RET_SUCCESS != oaes_encrypt( ctx,
-				(const uint8_t *)_buf, 1024 * 1024, _encbuf, &_encbuf_len ) )
+				(const uint8_t *)_buf, 1024 * 1024, _encbuf, &_encbuf_len,
+				_iv, &_pad ) )
 			printf("Error: Encryption failed.\n");
-		if( OAES_RET_SUCCESS !=  oaes_decrypt( ctx,
-				_encbuf, _encbuf_len, _decbuf, &_decbuf_len ) )
+		memcpy(_iv, "123456789012345", OAES_BLOCK_SIZE);
+		if( OAES_RET_SUCCESS !=	oaes_decrypt( ctx,
+				_encbuf, _encbuf_len, _decbuf, &_decbuf_len, _iv, _pad ) )
 			printf("Error: Decryption failed.\n");
 	}
 	

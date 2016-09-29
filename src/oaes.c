@@ -45,52 +45,6 @@ __inline static int setmode(int a, int b)
 }
 #endif
 
-typedef OAES_RET (*oaes_thread_func_t)(void *);
-
-#if defined(_WIN32) && !defined(__SYMBIAN32__)
-#include <windows.h>
-#include <process.h>
-
-uintptr_t start_thread(oaes_thread_func_t f, void *p)
-{
-	uintptr_t _id = _beginthreadex(NULL, 0, (int (__stdcall *)(void *)) f, p, 0, NULL);
-
-	if( -1L == _id )
-		_id = 0;
-	return _id;
-}
-
-void join_thread(uintptr_t id)
-{
-	if( NULL == id )
-		return;
-
-	WaitForSingleObject((HANDLE) id, INFINITE);
-}
-#else
-#include <pthread.h>
-
-uintptr_t start_thread(oaes_thread_func_t f, void *p)
-{
-	pthread_t _id = NULL;
-	pthread_attr_t attr;
-	int retval = 0;
-
-	(void) pthread_attr_init(&attr);
-	(void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-	retval = pthread_create(&_id, &attr, f, p);
-	return _id;
-}
-
-void join_thread(uintptr_t id)
-{
-	if( NULL == id )
-		return;
-
-	pthread_join(id, NULL);
-}
-#endif
-
 #ifndef __max
 	#define __max(a,b)  (((a) > (b)) ? (a) : (b))
 #endif // __max
@@ -108,10 +62,9 @@ void join_thread(uintptr_t id)
 
 #define OAES_BASE64_LEN_ENC 3072
 #define OAES_BASE64_LEN_DEC 4096
-#define OAES_AES_LEN_ENC 4096 - 2 * OAES_BLOCK_SIZE
+#define OAES_AES_LEN_ENC 4096
 #define OAES_AES_LEN_DEC 4096
 #define OAES_BUF_LEN 4096
-#define OAES_THREADS 16
 
 static void usage( const char * exe_name )
 {
@@ -141,6 +94,7 @@ static void usage( const char * exe_name )
 			"\n"
 			"    options:\n"
 			"      --ecb: use ecb mode instead of cbc\n"
+			"      --iv <base64_encoded_iv>\n"
 			"      --in <path_in>\n"
 			"      --out <path_out>\n"
 			"\n",
@@ -151,14 +105,16 @@ static void usage( const char * exe_name )
 static uint8_t _key_data[32] = "";
 static size_t _key_data_len = 0;
 static short _is_ecb = 0;
+static uint8_t _iv[OAES_BLOCK_SIZE] = "";
+static size_t _iv_len = 0;
 
 typedef struct _do_block
 {
-	intptr_t id;
 	size_t in_len;
 	uint8_t in[OAES_BUF_LEN];
 	size_t out_len;
 	uint8_t *out;
+	uint8_t pad;
 } do_block;
 
 // caller must free b->out if it's not NULL
@@ -170,6 +126,7 @@ static OAES_RET _do_base64_encode(do_block *b)
 	if( NULL == b )
 		return OAES_RET_ARG1;
 
+	b->pad = 0;
 	b->out = NULL;
 	b->out_len = 0;
 	_rc = oaes_base64_encode(
@@ -230,6 +187,7 @@ static OAES_RET _do_aes_encrypt(do_block *b)
 {
 	OAES_CTX * ctx = NULL;
 	OAES_RET _rc = OAES_RET_SUCCESS;
+	uint8_t _pad = 0;
 
 	if( NULL == b )
 		return OAES_RET_ARG1;
@@ -242,15 +200,25 @@ static OAES_RET _do_aes_encrypt(do_block *b)
 	}
 
 	if( _is_ecb )
-		if( OAES_RET_SUCCESS != oaes_set_option( ctx, OAES_OPTION_ECB, NULL ) )
+	{
+		if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_ECB, NULL) )
 			fprintf(stderr, "Error: Failed to set OAES options.\n");
+	}
+	else
+	{
+		if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
+			fprintf(stderr, "Error: Failed to set OAES options.\n");
+	}
 
 	oaes_key_import_data( ctx, _key_data, _key_data_len );
 
+	b->pad = 0;
 	b->out = NULL;
 	b->out_len = 0;
 	_rc = oaes_encrypt( ctx,
-			b->in, b->in_len, b->out, &(b->out_len) );
+		b->in, b->in_len,
+		NULL, &(b->out_len),
+		NULL, NULL );
 	if( OAES_RET_SUCCESS != _rc )
 	{
 		fprintf(stderr, "Error: Failed to encrypt.\n");
@@ -265,7 +233,15 @@ static OAES_RET _do_aes_encrypt(do_block *b)
 		return OAES_RET_MEM;
 	}
 	_rc = oaes_encrypt( ctx,
-			b->in, b->in_len, b->out, &(b->out_len) );
+		b->in, b->in_len,
+		b->out, &(b->out_len),
+		_iv, &(b->pad) );
+	if( OAES_RET_SUCCESS != _rc )
+	{
+		fprintf(stderr, "Error: Failed to encrypt.\n");
+		oaes_free(&ctx);
+		return _rc;
+	}
 
 	if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
 		fprintf(stderr, "Error: Failed to uninitialize OAES.\n");
@@ -290,15 +266,29 @@ static OAES_RET _do_aes_decrypt(do_block *b)
 	}
 
 	if( _is_ecb )
-		if( OAES_RET_SUCCESS != oaes_set_option( ctx, OAES_OPTION_ECB, NULL ) )
+	{
+		if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_ECB, NULL) )
 			fprintf(stderr, "Error: Failed to set OAES options.\n");
+	}
+	else
+	{
+		if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
+			fprintf(stderr, "Error: Failed to set OAES options.\n");
+	}
 
 	oaes_key_import_data( ctx, _key_data, _key_data_len );
 
+	// TODO: improve this condition
+	if( b->in_len < OAES_AES_LEN_DEC )
+		b->pad = 1;
+	else
+		b->pad = 0;
 	b->out = NULL;
 	b->out_len = 0;
 	_rc = oaes_decrypt( ctx,
-			b->in, b->in_len, b->out, &(b->out_len) );
+		b->in, b->in_len,
+		NULL, &(b->out_len),
+		NULL, NULL );
 	if( OAES_RET_SUCCESS != _rc )
 	{
 		fprintf(stderr, "Error: Failed to decrypt.\n");
@@ -313,12 +303,100 @@ static OAES_RET _do_aes_decrypt(do_block *b)
 		return OAES_RET_MEM;
 	}
 	_rc = oaes_decrypt( ctx,
-			b->in, b->in_len, b->out, &(b->out_len) );
+		b->in, b->in_len,
+		b->out, &(b->out_len),
+		_iv, b->pad );
+	if( OAES_RET_SUCCESS != _rc )
+	{
+		fprintf(stderr, "Error: Failed to decrypt.\n");
+		oaes_free(&ctx);
+		return _rc;
+	}
 
-	if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
+	if( OAES_RET_SUCCESS !=	oaes_free(&ctx) )
 		fprintf(stderr, "Error: Failed to uninitialize OAES.\n");
 	
 	return _rc;
+}
+
+static int _get_user_input_iv(void)
+{
+	size_t _i = 0;
+	char _iv_ent[8193] = "";
+	uint8_t *_buf = NULL;
+	size_t _buf_len = 0;
+
+	fprintf(stderr, "Enter base64-encoded iv: ");
+	scanf("%8192s", _iv_ent);
+	if( oaes_base64_decode(
+		_iv_ent, strlen(_iv_ent), NULL, &_buf_len ) )
+	{
+		fprintf(stderr, "Error: Invalid value for iv.\n");
+		return 1;
+	}
+	_buf = (uint8_t *)calloc(_buf_len, sizeof(uint8_t));
+	if( NULL == _buf )
+	{
+		fprintf(stderr, "Error: Failed to allocate memory.\n");
+		return 1;
+	}
+	if( oaes_base64_decode(
+		_iv_ent, strlen(_iv_ent), _buf, &_buf_len ) )
+	{
+		free(_buf);
+		fprintf(stderr, "Error: Invalid value for iv.\n");
+		return 1;
+	}
+	_iv_len = _buf_len;
+	if( OAES_BLOCK_SIZE > _iv_len )
+		_iv_len = OAES_BLOCK_SIZE;
+	memcpy(_iv, _buf, __min(OAES_BLOCK_SIZE, _buf_len));
+	for( _i = OAES_BLOCK_SIZE; _i < _buf_len; _i++ )
+		_iv[_i % OAES_BLOCK_SIZE] ^= _buf[_i];
+	free(_buf);
+	return 0;
+}
+
+static int _get_user_input_key(void)
+{
+	size_t _i = 0;
+	char _key_data_ent[8193] = "";
+	uint8_t *_buf = NULL;
+	size_t _buf_len = 0;
+
+	fprintf(stderr, "Enter base64-encoded key: ");
+	scanf("%8192s", _key_data_ent);
+	if( oaes_base64_decode(
+		_key_data_ent, strlen(_key_data_ent), NULL, &_buf_len ) )
+	{
+		fprintf(stderr, "Error: Invalid value for key.\n");
+		return 1;
+	}
+	_buf = (uint8_t *)calloc(_buf_len, sizeof(uint8_t));
+	if( NULL == _buf )
+	{
+		fprintf(stderr, "Error: Failed to allocate memory.\n");
+		return 1;
+	}
+	if( oaes_base64_decode(
+		_key_data_ent, strlen(_key_data_ent), _buf, &_buf_len ) )
+	{
+		free(_buf);
+		fprintf(stderr, "Error: Invalid value for key.\n");
+		return 1;
+	}
+	_key_data_len = _buf_len;
+	if( 16 >= _key_data_len )
+		_key_data_len = 16;
+	else if( 24 >= _key_data_len )
+		_key_data_len = 24;
+	else
+		_key_data_len = 32;
+	memcpy(_key_data, _buf, __min(32, _buf_len));
+	for( _i = 0; _i < _buf_len; _i++ )
+		_key_data[_i % 32] ^= _buf[_i];
+	free(_buf);
+	return 0;
 }
 
 int main(int argc, char** argv)
@@ -328,7 +406,7 @@ int main(int argc, char** argv)
 	char *_file_in = NULL, *_file_out = NULL, *_file_k = NULL;
 	int _op = 0;
 	FILE *_f_in = stdin, *_f_out = stdout, *_f_k = NULL;
-	do_block _b[OAES_THREADS];
+	do_block _b;
 	
 	fprintf( stderr, "\n"
 		"*******************************************************************************\n"
@@ -458,7 +536,52 @@ int main(int argc, char** argv)
 			_is_ecb = 1;
 		}
 		
-		if( 0 == strcmp( argv[_i], "--key" ) )
+		if( 0 == strcmp(argv[_i], "--iv") )
+		{
+			uint8_t *_buf = NULL;
+			size_t _buf_len = 0;
+			_found = 1;
+			_i++; // base64_encoded_iv
+			if (_i >= argc)
+			{
+				fprintf(stderr, "Error: No value specified for '%s'.\n",
+					argv[_i - 1]);
+				usage(argv[0]);
+				return EXIT_FAILURE;
+			}
+			if (oaes_base64_decode(argv[_i], strlen(argv[_i]), NULL, &_buf_len))
+			{
+				fprintf(stderr, "Error: Invalid value for '%s'.\n",
+					argv[_i - 1]);
+				usage(argv[0]);
+				return EXIT_FAILURE;
+			}
+			_buf = (uint8_t *)calloc(_buf_len, sizeof(uint8_t));
+			if (NULL == _buf)
+			{
+				fprintf(stderr, "Error: Failed to allocate memory.\n");
+				return EXIT_FAILURE;
+			}
+			if (oaes_base64_decode(argv[_i], strlen(argv[_i]), _buf, &_buf_len))
+			{
+				free(_buf);
+				fprintf(stderr, "Error: Invalid value for '%s'.\n",
+					argv[_i - 1]);
+				usage(argv[0]);
+				return EXIT_FAILURE;
+			}
+			_iv_len = _buf_len;
+			if( OAES_BLOCK_SIZE > _iv_len )
+				_iv_len = OAES_BLOCK_SIZE;
+			memcpy(_iv, _buf, __min(OAES_BLOCK_SIZE, _buf_len));
+			for( _j = OAES_BLOCK_SIZE; _j < _buf_len; _j++ )
+			{
+				_iv[_j % OAES_BLOCK_SIZE] ^= _buf[_j];
+			}
+			free(_buf);
+		}
+
+		if (0 == strcmp(argv[_i], "--key"))
 		{
 			uint8_t *_buf = NULL;
 			size_t _buf_len = 0;
@@ -600,50 +723,21 @@ int main(int argc, char** argv)
 		break;
 	case 2:
 	case 3:
+		if( 0 == _iv_len && 0 == _is_ecb )
+		{
+			if( _get_user_input_iv() )
+			{
+				usage(argv[0]);
+				return EXIT_FAILURE;
+			}
+		}
 		if( 0 == _key_data_len )
 		{
-			char _key_data_ent[8193] = "";
-			uint8_t *_buf = NULL;
-			size_t _buf_len = 0;
-
-			fprintf(stderr, "Enter base64-encoded key: ");
-			scanf("%8192s", _key_data_ent);
-			if( oaes_base64_decode(
-					_key_data_ent, strlen(_key_data_ent), NULL, &_buf_len ) )
+			if( _get_user_input_key() )
 			{
-				fprintf(stderr, "Error: Invalid value for '%s'.\n",
-						argv[_i - 1]);
-				usage( argv[0] );
+				usage(argv[0]);
 				return EXIT_FAILURE;
 			}
-			_buf = (uint8_t *) calloc(_buf_len, sizeof(uint8_t));
-			if( NULL == _buf )
-			{
-				fprintf(stderr, "Error: Failed to allocate memory.\n");
-				return EXIT_FAILURE;
-			}
-			if( oaes_base64_decode(
-					_key_data_ent, strlen(_key_data_ent), _buf, &_buf_len ) )
-			{
-				free(_buf);
-				fprintf(stderr, "Error: Invalid value for '%s'.\n",
-						argv[_i - 1]);
-				usage( argv[0] );
-				return EXIT_FAILURE;
-			}
-			_key_data_len = _buf_len;
-			if( 16 >= _key_data_len )
-				_key_data_len = 16;
-			else if( 24 >= _key_data_len )
-				_key_data_len = 24;
-			else
-				_key_data_len = 32;
-			memcpy(_key_data, _buf, __min(32, _buf_len));
-			for( _j = 0; _j < _buf_len; _j++ )
-			{
-				_key_data[_j % 32] ^= _buf[_j];
-			}
-			free(_buf);
 		}
 		break;
 	default:
@@ -693,65 +787,35 @@ int main(int argc, char** argv)
 	}
 
 	_i = 0;
-	while( _b[_i].in_len =
-		fread(_b[_i].in, sizeof(uint8_t), _read_len, _f_in) )
+	while( _b.in_len =
+		fread(_b.in, sizeof(uint8_t), _read_len, _f_in) )
 	{
 		switch(_op)
 		{
 		case 0:
-			_b[_i].id = start_thread(_do_base64_encode, &(_b[_i]));
-			if( NULL == _b[_i].id )
-				fprintf(stderr, "Error: Failed to start encryption.\n");
+			if( OAES_RET_SUCCESS != _do_base64_encode(&_b) )
+				fprintf(stderr, "Error: Encryption failed.\n");
 			break;
 		case 1:
-			_b[_i].id = start_thread(_do_base64_decode, &(_b[_i]));
-			if( NULL == _b[_i].id )
-				fprintf(stderr, "Error: Failed to start decryption.\n");
+			if( OAES_RET_SUCCESS != _do_base64_decode(&_b) )
+				fprintf(stderr, "Error: Decryption failed.\n");
 			break;
 		case 2:
-			_b[_i].id = start_thread(_do_aes_encrypt, &(_b[_i]));
-			if( NULL == _b[_i].id )
-				fprintf(stderr, "Error: Failed to start encryption.\n");
+			if( OAES_RET_SUCCESS != _do_aes_encrypt(&_b) )
+				fprintf(stderr, "Error: Encryption failed.\n");
 			break;
 		case 3:
-			_b[_i].id = start_thread(_do_aes_decrypt, &(_b[_i]));
-			if( NULL == _b[_i].id )
-				fprintf(stderr, "Error: Failed to start decryption.\n");
+			if( OAES_RET_SUCCESS != _do_aes_decrypt(&_b) )
+				fprintf(stderr, "Error: Decryption failed.\n");
 			break;
 		default:
 			break;
 		}
-		if( OAES_THREADS == _i + 1 )
+		if( _b.out )
 		{
-			for( _j = 0; _j < OAES_THREADS; _j++ )
-			{
-				if( _b[_j].id )
-				{
-					join_thread(_b[_j].id);
-					_b[_j].id = 0;
-					if( _b[_j].out )
-					{
-						fwrite(_b[_j].out, sizeof(uint8_t), _b[_j].out_len, _f_out);
-						free(_b[_j].out);
-						_b[_j].out = NULL;
-					}
-				}
-			}
-		}
-		_i = (_i + 1) % OAES_THREADS;
-	}
-	for( _j = 0; _j < _i; _j++ )
-	{
-		if( _b[_j].id )
-		{
-			join_thread(_b[_j].id);
-			_b[_j].id = 0;
-			if( _b[_j].out )
-			{
-				fwrite(_b[_j].out, sizeof(uint8_t), _b[_j].out_len, _f_out);
-				free(_b[_j].out);
-				_b[_j].out = NULL;
-			}
+			fwrite(_b.out, sizeof(uint8_t), _b.out_len, _f_out);
+			free(_b.out);
+			_b.out = NULL;
 		}
 	}
 

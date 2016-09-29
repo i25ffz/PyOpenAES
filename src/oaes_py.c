@@ -75,7 +75,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     }
 
     // encrypt get length
-    ret = oaes_encrypt( ctx, content, len_c, NULL, &len_o );
+    ret = oaes_encrypt( ctx, content, len_c, NULL, &len_o, NULL, NULL );
 #ifdef OAES_DEBUG
     printf("out len:%ld\n", len_o);
 #endif //end of OAES_DEBUG
@@ -96,7 +96,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     }
 
     //after get len && malloc, encrypt again
-    ret = oaes_encrypt( ctx, content, len_c, buf, &len_o );
+    ret = oaes_encrypt( ctx, content, len_c, buf, &len_o, NULL, NULL );
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
         PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");
@@ -144,7 +144,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     }
 
     // decrypt get length
-    ret = oaes_decrypt( ctx, content, len_c, NULL, &len_o );
+    ret = oaes_decrypt( ctx, content, len_c, NULL, &len_o, NULL, NULL );
 #ifdef OAES_DEBUG
     printf("out len:%ld\n", len_o);
 #endif //end of OAES_DEBUG
@@ -165,7 +165,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     }
 
     //after get len && malloc, decrypt again
-    ret = oaes_decrypt( ctx, content, len_c, buf, &len_o );
+    ret = oaes_decrypt( ctx, content, len_c, buf, &len_o, NULL, NULL );
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
         PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");

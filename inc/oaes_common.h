@@ -51,7 +51,7 @@ extern "C" {
 #	define OAES_API
 #endif // WIN32
 
-#define OAES_VERSION "0.9.0"
+#define OAES_VERSION "0.10.0"
 
 typedef enum
 {
@@ -63,6 +63,8 @@ typedef enum
 	OAES_RET_ARG3,
 	OAES_RET_ARG4,
 	OAES_RET_ARG5,
+	OAES_RET_ARG6,
+	OAES_RET_ARG7,
 	OAES_RET_NOKEY,
 	OAES_RET_MEM,
 	OAES_RET_BUF,

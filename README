@@ -1,18 +1,5 @@
-PyOpenAES build
 ---------------------------------------------------------------------------
-1. python setup.py build
-2. sudo python setup.py install
-3. python test.py
-
-Before run test.py, you shoud compile openaes use cmake, and run:
-./oaes gen-key 256 key_256
-
----------------------------------------------------------------------------
----------------------------------------------------------------------------
-* README from openaes: https://code.google.com/p/openaes/
----------------------------------------------------------------------------
----------------------------------------------------------------------------
-OpenAES-0.9.0
+OpenAES-0.10.0
 Nabil S. Al Ramli
 www.nalramli.com
 ---------------------------------------------------------------------------
@@ -96,3 +83,8 @@ Samples
 -------
 
 Samples applications are provided in the /test folder.
+
+Special thanks to:
+------------------
+Pedro A. Hortas
+Yahalom Emet
