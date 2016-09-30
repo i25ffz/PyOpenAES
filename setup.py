@@ -2,8 +2,8 @@ from distutils.core import setup, Extension
 import os.path
 
 kw = {
-	'name':"OpenAES cryptographic library for Python",
-	'version':"0.9.0",
+	'name':"PyOpenAES",
+	'version':"0.10.0",
 	'description':"OpenAES cryptographic library for Python.",
 	'ext_modules':[
 		Extension(

@@ -37,6 +37,7 @@
 #include "oaes_lib.h"
 
 static PyObject *OpenaesError;
+static uint8_t _iv[OAES_BLOCK_SIZE] = "0123456789abcdef";
 
 PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
 {
@@ -45,6 +46,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     int len_k, len_c;
     uint8_t *buf = NULL;
     size_t len_o = 0;
+    uint8_t pad = 0;
 
     if (!PyArg_ParseTuple(args, "s#s#:encrypt", &key, &len_k, &content, &len_c))
         return NULL;
@@ -63,6 +65,12 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     if( NULL == ctx )
     {
         PyErr_SetString(OpenaesError, "Failed to initialize OAES.");
+        return NULL;
+    }
+
+    if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
+    {
+        PyErr_SetString(OpenaesError, "Failed to set OAES options.");
         return NULL;
     }
 
@@ -96,7 +104,7 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
     }
 
     //after get len && malloc, encrypt again
-    ret = oaes_encrypt( ctx, content, len_c, buf, &len_o, NULL, NULL );
+    ret = oaes_encrypt( ctx, content, len_c, buf, &len_o, _iv, &pad);
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
         PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");
@@ -113,6 +121,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     unsigned int len_k, len_c;
     uint8_t *buf = NULL;
     size_t len_o = 0;
+    uint8_t pad = 0;
 
     if (!PyArg_ParseTuple(args, "s#s#:decrypt", &key, &len_k, &content, &len_c))
         return NULL;
@@ -132,6 +141,12 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     if( NULL == ctx )
     {
         PyErr_SetString(OpenaesError, "Failed to initialize OAES.");
+        return NULL;
+    }
+
+    if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
+    {
+        PyErr_SetString(OpenaesError, "Failed to set OAES options.");
         return NULL;
     }
 
@@ -165,7 +180,7 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     }
 
     //after get len && malloc, decrypt again
-    ret = oaes_decrypt( ctx, content, len_c, buf, &len_o, NULL, NULL );
+    ret = oaes_decrypt( ctx, content, len_c, buf, &len_o, _iv, &pad );
 
     if( OAES_RET_SUCCESS !=  oaes_free(&ctx) )
         PyErr_SetString(OpenaesError, "Failed to uninitialize OAES.");
