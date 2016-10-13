@@ -14,9 +14,10 @@
 #
 
 LOCAL_PATH := $(call my-dir)
+OAES_PATH := $(realpath $(call my-dir)/../..)
 
 ##########################################################
-#                   openaes                           #
+#                   libopenaes.so                        #
 ##########################################################
 include $(CLEAR_VARS)
 
@@ -30,9 +31,13 @@ LOCAL_ARM_MODE := arm
 
 LOCAL_MODULE    := openaes
 
-LOCAL_SRC_FILES := oaes_jni.c  oaes_lib.c  rand.c
+LOCAL_SRC_FILES := oaes_jni.c \
+		$(OAES_PATH)/src/oaes_lib.c \
+		$(OAES_PATH)/src/isaac/rand.c
 
-LOCAL_CFLAGS += -O2 -fvisibility=hidden
+LOCAL_C_INCLUDES := $(OAES_PATH)/inc $(OAES_PATH)/src/isaac
+
+LOCAL_CFLAGS := -O2 -fvisibility=hidden
 
 LOCAL_LDLIBS := -llog
 
@@ -40,3 +45,29 @@ include $(BUILD_SHARED_LIBRARY)
 
 # at the end of Android.mk
 # $(call import-module,android-ndk-profiler)
+
+##########################################################
+#                          oaes                          #
+##########################################################
+
+include $(CLEAR_VARS)
+# measurements show that the ARM version of ZLib is about x1.17 faster
+# than the thumb one...
+LOCAL_ARM_MODE := arm
+
+# compile with profiling
+# LOCAL_CFLAGS := -pg
+# LOCAL_STATIC_LIBRARIES := android-ndk-profiler
+
+LOCAL_MODULE    := oaes
+
+LOCAL_SRC_FILES := $(OAES_PATH)/src/oaes.c \
+		$(OAES_PATH)/src/oaes_base64.c \
+		$(OAES_PATH)/src/oaes_lib.c \
+		$(OAES_PATH)/src/isaac/rand.c
+
+LOCAL_C_INCLUDES := $(OAES_PATH)/inc $(OAES_PATH)/src/isaac
+
+LOCAL_CFLAGS := -O2 -fvisibility=hidden
+
+include $(BUILD_EXECUTABLE)
