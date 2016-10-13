@@ -1,0 +1,17 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+			"folder_exclude_patterns":
+			[
+				".git",
+				".gradle",
+				".idea",
+				"build",
+				"obj",
+				"libs"
+			]
+		}
+	]
+}
