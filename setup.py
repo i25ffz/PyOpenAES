@@ -12,6 +12,7 @@ kw = {
 			# define_macros=[('ENABLE_PYTHON', '1')],
 			sources = [
 				os.path.join('src/oaes_lib.c'),
+				os.path.join('src/oaes_base64.c'),
 				os.path.join('src/oaes_py.c'),
 				os.path.join('src/isaac/rand.c')
 			]

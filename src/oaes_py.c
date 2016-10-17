@@ -37,7 +37,44 @@
 #include "oaes_lib.h"
 
 static PyObject *OpenaesError;
-static uint8_t _iv[OAES_BLOCK_SIZE] = "0123456789abcdef";
+static uint8_t _iv[OAES_BLOCK_SIZE] = "";
+static size_t _iv_len = 0;
+
+static int init_iv(void)
+{
+    size_t _i = 0;
+    const char _iv_ent[16] = "0123456789abcde";
+    uint8_t *_buf = NULL;
+    size_t _buf_len = 0;
+
+    if( oaes_base64_decode(
+        _iv_ent, strlen(_iv_ent), NULL, &_buf_len ) )
+    {
+        fprintf(stderr, "Error: Invalid value for iv.\n");
+        return 1;
+    }
+    _buf = (uint8_t *)calloc(_buf_len, sizeof(uint8_t));
+    if( NULL == _buf )
+    {
+        fprintf(stderr, "Error: Failed to allocate memory.\n");
+        return 1;
+    }
+    if( oaes_base64_decode(
+        _iv_ent, strlen(_iv_ent), _buf, &_buf_len ) )
+    {
+        free(_buf);
+        fprintf(stderr, "Error: Invalid value for iv.\n");
+        return 1;
+    }
+    _iv_len = _buf_len;
+    if( OAES_BLOCK_SIZE > _iv_len )
+        _iv_len = OAES_BLOCK_SIZE;
+    memcpy(_iv, _buf, OAES_BLOCK_SIZE >= _buf_len ? _buf_len : OAES_BLOCK_SIZE);
+    for( _i = OAES_BLOCK_SIZE; _i < _buf_len; _i++ )
+        _iv[_i % OAES_BLOCK_SIZE] ^= _buf[_i];
+    free(_buf);
+    return 0;
+}
 
 PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
 {
@@ -68,6 +105,8 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
         return NULL;
     }
 
+    //init iv before set option
+    init_iv();
     if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
     {
         PyErr_SetString(OpenaesError, "Failed to set OAES options.");
@@ -144,6 +183,8 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
         return NULL;
     }
 
+    //init iv before set option
+    init_iv();
     if( OAES_RET_SUCCESS != oaes_set_option(ctx, OAES_OPTION_CBC, _iv) )
     {
         PyErr_SetString(OpenaesError, "Failed to set OAES options.");
