@@ -37,6 +37,8 @@
 #include "oaes_lib.h"
 
 static PyObject *OpenaesError;
+static uint8_t _key_data[32] = "";
+static size_t _key_data_len = 0;
 static uint8_t _iv[OAES_BLOCK_SIZE] = "";
 static size_t _iv_len = 0;
 
@@ -121,6 +123,14 @@ PyObject* python_oaes_encrypt(PyObject* self, PyObject* args)
         return NULL;
     }
 
+    _key_data_len = sizeof(_key_data);
+    if( OAES_RET_SUCCESS != oaes_key_export_data(ctx, _key_data, &_key_data_len) )
+    {
+        PyErr_SetString(OpenaesError, "Export key error.");
+        oaes_free(&ctx);
+        return NULL;
+    }
+
     // encrypt get length
     ret = oaes_encrypt( ctx, content, len_c, NULL, &len_o, NULL, NULL );
 #ifdef OAES_DEBUG
@@ -195,6 +205,14 @@ PyObject* python_oaes_decrypt(PyObject* self, PyObject* args)
     if( OAES_RET_SUCCESS != ret)
     {
         PyErr_SetString(OpenaesError, "Import decrypt key error.");
+        oaes_free(&ctx);
+        return NULL;
+    }
+
+    _key_data_len = sizeof(_key_data);
+    if( OAES_RET_SUCCESS != oaes_key_export_data(ctx, _key_data, &_key_data_len) )
+    {
+        PyErr_SetString(OpenaesError, "Export key error.");
         oaes_free(&ctx);
         return NULL;
     }
